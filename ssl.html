@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSL Installation Guide for CentOS Web Server</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #24292e;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2, h3 {
+            border-bottom: 1px solid #eaecef;
+            padding-bottom: 0.3em;
+        }
+        h1 {
+            font-size: 2em;
+        }
+        code {
+            font-family: 'SF Mono', Monaco, Consolas, 'Liberation Mono', Courier, monospace;
+            background-color: #f6f8fa;
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-size: 85%;
+        }
+        pre {
+            background-color: #f6f8fa;
+            border-radius: 3px;
+            padding: 16px;
+            overflow: auto;
+            line-height: 1.45;
+            border: 1px solid #ddd;
+        }
+        pre code {
+            background-color: transparent;
+            padding: 0;
+            white-space: pre;
+        }
+        .note {
+            background-color: #fff5b1;
+            border-left: 4px solid #f9c513;
+            padding: 12px;
+            margin: 16px 0;
+            border-radius: 3px;
+        }
+        .warning {
+            background-color: #ffeef0;
+            border-left: 4px solid #d73a49;
+            padding: 12px;
+            margin: 16px 0;
+            border-radius: 3px;
+        }
+        .info-box {
+            background-color: #e6f3ff;
+            border-left: 4px solid #0366d6;
+            padding: 12px;
+            margin: 16px 0;
+            border-radius: 3px;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 16px 0;
+        }
+        th, td {
+            border: 1px solid #dfe2e5;
+            padding: 8px 13px;
+        }
+        th {
+            background-color: #f6f8fa;
+        }
+        .step {
+            background-color: #f9f9f9;
+            border-left: 4px solid #28a745;
+            padding: 16px;
+            margin: 20px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        .command-block {
+            background-color: #2d2d2d;
+            color: #f8f8f2;
+            padding: 16px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            margin: 16px 0;
+            overflow-x: auto;
+        }
+        .config-file {
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            padding: 16px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            margin: 16px 0;
+            overflow-x: auto;
+        }
+        .screenshot-placeholder {
+            background-color: #f1f8ff;
+            border: 2px dashed #0366d6;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            margin: 20px 0;
+            color: #0366d6;
+            font-weight: 600;
+        }
+        .qa-box {
+            background-color: #f6f8fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 4px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .question {
+            font-weight: 600;
+            color: #d73a49;
+        }
+        .answer {
+            margin-top: 10px;
+            padding-left: 20px;
+            border-left: 3px solid #28a745;
+        }
+    </style>
+</head>
+<body>
+    <h1>SSL Installation Guide for CentOS Web Server</h1>
+
+    <div class="info-box">
+        <strong>🔒 About SSL:</strong> This guide covers installing and configuring SSL/TLS encryption on a CentOS web server using mod_ssl and OpenSSL. SSL certificates encrypt traffic between your server and visitors, securing sensitive data and improving trust.
+    </div>
+
+    <h2>Prerequisites</h2>
+    
+    <div class="note">
+        <strong>Note:</strong> Before starting, ensure you have a CentOS server with Apache (httpd) installed or you'll install it during this process.
+    </div>
+
+    <h2>Step-by-Step SSL Installation</h2>
+
+    <div class="step">
+        <h3>Step 1: Install Apache (if not already installed)</h3>
+        <div class="command-block">
+# Install Apache
+sudo yum install httpd -y
+
+# Start Apache and enable auto-start
+sudo systemctl start httpd
+sudo systemctl enable httpd.service
+
+# Check Apache status
+sudo systemctl status httpd
+        </div>
+    </div>
+
+    <div class="step">
+        <h3>Step 2: Configure Firewall for HTTPS</h3>
+        <div class="command-block">
+# Allow HTTPS through firewall
+sudo firewall-cmd --permanent --add-service=https
+
+# Also ensure HTTP is allowed (for redirects)
+sudo firewall-cmd --permanent --add-service=http
+
+# Reload firewall to apply changes
+sudo firewall-cmd --reload
+
+# Verify firewall rules
+sudo firewall-cmd --list-all
+        </div>
+    </div>
+
+    <div class="step">
+        <h3>Step 3: Install mod_ssl and OpenSSL</h3>
+        <div class="command-block">
+# Install mod_ssl and OpenSSL packages
+sudo yum install mod_ssl openssl -y
+        </div>
+    </div>
+
+    <div class="step">
+        <h3>Step 4: Create SSL Certificate Directories</h3>
+        <div class="command-block">
+# Create directory for private keys
+sudo mkdir -p /etc/ssl/private
+
+# Set proper permissions
+sudo chmod 700 /etc/ssl/private
+        </div>
+    </div>
+
+    <div class="step">
+        <h3>Step 5: Generate Self-Signed SSL Certificate</h3>
+        
+        <div class="command-block">
+# Generate SSL key files (valid for 365 days)
+sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout /etc/ssl/private/apache-selfsigned.key \
+    -out /etc/ssl/certs/apache-selfsigned.crt
+        </div>
+
+        <p>You will be prompted to enter information about your site. The most important field is <strong>Common Name</strong> - enter your domain name (e.g., example.com or www.example.com).</p>
+
+        <div class="screenshot-placeholder">
+            🔐 OpenSSL Certificate Generation - Fill in your site information<br>
+            Common Name (e.g., server FQDN or YOUR domain name) []: example.com
+        </div>
+
+        <h4>OpenSSL prompts explained:</h4>
+        <table>
+            <tr>
+                <th>Field</th>
+                <th>Description</th>
+                <th>Example</th>
+            </tr>
+            <tr>
+                <td>Country Name</td>
+                <td>Two-letter country code</td>
+                <td>US, GB, RU, etc.</td>
+            </tr>
+            <tr>
+                <td>State or Province</td>
+                <td>Full state/province name</td>
+                <td>California</td>
+            </tr>
+            <tr>
+                <td>Locality Name</td>
+                <td>City name</td>
+                <td>San Francisco</td>
+            </tr>
+            <tr>
+                <td>Organization Name</td>
+                <td>Company/organization name</td>
+                <td>Example Inc</td>
+            </tr>
+            <tr>
+                <td>Organizational Unit</td>
+                <td>Department name</td>
+                <td>IT Department</td>
+            </tr>
+            <tr>
+                <td>Common Name</td>
+                <td><strong>Domain name (most important!)</strong></td>
+                <td>example.com</td>
+            </tr>
+            <tr>
+                <td>Email Address</td>
+                <td>Admin email</td>
+                <td>admin@example.com</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="step">
+        <h3>Step 6: Configure Perfect Forward Secrecy (PFS)</h3>
+        
+        <div class="command-block">
+# Generate Diffie-Hellman parameters (takes a few minutes)
+sudo openssl dhparam -out /etc/ssl/certs/dhparam.pem 2048
+
+# Append DH parameters to certificate
+cat /etc/ssl/certs/dhparam.pem | sudo tee -a /etc/ssl/certs/apache-selfsigned.crt
+        </div>
+
+        <div class="note">
+            <strong>What is PFS?</strong> Perfect Forward Secrecy ensures that session keys are not compromised even if the server's private key is compromised. This is an important security feature for modern websites.
+        </div>
+    </div>
+
+    <div class="step">
+        <h3>Step 7: Configure Apache SSL Settings</h3>
+        
+        <p>Edit the SSL configuration file:</p>
+        <div class="command-block">
+sudo vi /etc/httpd/conf.d/ssl.conf
+        </div>
+
+        <p>Find and update the following lines:</p>
+
+        <div class="config-file">
+# Change ServerName to your domain (replace example.com with your actual domain)
+ServerName www.example.com:443
+
+# Comment out or remove the default certificate lines:
+# SSLCertificateFile /etc/pki/tls/certs/localhost.crt
+# SSLCertificateKeyFile /etc/pki/tls/private/localhost.key
+
+# Add your new certificate paths:
+SSLCertificateFile /etc/ssl/certs/apache-selfsigned.crt
+SSLCertificateKeyFile /etc/ssl/private/apache-selfsigned.key
+        </div>
+
+        <h4>Additional SSL hardening (optional but recommended):</h4>
+        <div class="config-file">
+# Add these lines to improve SSL security
+SSLCipherSuite HIGH:!aNULL:!MD5
+SSLProtocol All -SSLv3 -TLSv1 -TLSv1.1
+SSLCompression off
+SSLSessionTickets off
+
+# Add DH parameters (if not already appended to certificate)
+SSLOpenSSLConfCmd DHParameters "/etc/ssl/certs/dhparam.pem"
+        </div>
+    </div>
+
+    <div class="step">
+        <h3>Step 8: Configure VirtualHost for HTTPS</h3>
+        
+        <p>In the same <code>ssl.conf</code> file or in your virtual host configuration, ensure you have a VirtualHost block for port 443:</p>
+
+        <div class="config-file">
+&lt;VirtualHost *:443&gt;
+    ServerName example.com
+    ServerAlias www.example.com
+    DocumentRoot /var/www/html
+    
+    SSLEngine on
+    SSLCertificateFile /etc/ssl/certs/apache-selfsigned.crt
+    SSLCertificateKeyFile /etc/ssl/private/apache-selfsigned.key
+    
+    &lt;Directory /var/www/html&gt;
+        Options FollowSymLinks
+        AllowOverride All
+        Require all granted
+    &lt;/Directory&gt;
+    
+    ErrorLog logs/ssl_error_log
+    TransferLog logs/ssl_access_log
+    LogLevel warn
+&lt;/VirtualHost&gt;
+        </div>
+    </div>
+
+    <div class="step">
+        <h3>Step 9: Restart Apache and Test SSL</h3>
+        
+        <div class="command-block">
+# Test Apache configuration for syntax errors
+sudo httpd -t
+
+# Restart Apache to apply changes
+sudo systemctl restart httpd.service
+
+# Check Apache status
+sudo systemctl status httpd
+        </div>
+
+        <p>After restarting, test your SSL certificate by visiting your domain with HTTPS:</p>
+        <div class="command-block">
+https://your-domain.com
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ Browser Warning:</strong> Since this is a self-signed certificate, browsers will show a security warning. This is normal for self-signed certificates. For production sites, consider using Let's Encrypt for free trusted certificates.
+        </div>
+    </div>
+
+    <h2>Redirect HTTP to HTTPS</h2>
+
+    <p>To automatically redirect all HTTP traffic to HTTPS, add this configuration to your <code>.htaccess</code> file or Apache configuration:</p>
+
+    <h3>Method 1: Using .htaccess</h3>
+    <div class="config-file">
+RewriteEngine On
+RewriteCond %{HTTPS} !on
+RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+    </div>
+
+    <h3>Method 2: Using Apache VirtualHost (HTTP)</h3>
+    <div class="config-file">
+&lt;VirtualHost *:80&gt;
+    ServerName example.com
+    ServerAlias www.example.com
+    
+    # Redirect all traffic to HTTPS
+    RewriteEngine On
+    RewriteCond %{HTTPS} off
+    RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+&lt;/VirtualHost&gt;
+    </div>
+
+    <h2>Troubleshooting: HTTP to HTTPS Redirect Not Working</h2>
+
+    <div class="qa-box">
+        <div class="question">❓ Problem: HTTP to HTTPS redirect is not working - site opens via HTTP even though SSL is installed</div>
+        <div class="answer">
+            <strong>Solution:</strong> Add this redirect rule to your .htaccess file:
+            <div class="config-file">
+RewriteEngine On
+RewriteCond %{HTTPS} !on
+RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+            </div>
+            <p>Make sure:</p>
+            <ul>
+                <li>mod_rewrite is enabled</li>
+                <li>.htaccess files are allowed (AllowOverride All in Apache config)</li>
+                <li>The rule is placed before any other rules</li>
+                <li>Clear browser cache after adding the rule</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Complete SSL Configuration Example</h2>
+
+    <p>Here's a complete working example of <code>/etc/httpd/conf.d/ssl.conf</code>:</p>
+
+    <div class="config-file">
+Listen 443 https
+
+&lt;VirtualHost *:443&gt;
+    ServerName example.com
+    ServerAlias www.example.com
+    DocumentRoot /var/www/html
+    
+    SSLEngine on
+    SSLCertificateFile /etc/ssl/certs/apache-selfsigned.crt
+    SSLCertificateKeyFile /etc/ssl/private/apache-selfsigned.key
+    
+    # Modern SSL configuration
+    SSLProtocol All -SSLv3 -TLSv1 -TLSv1.1
+    SSLCipherSuite HIGH:!aNULL:!MD5
+    SSLCompression off
+    SSLSessionTickets off
+    
+    &lt;Directory /var/www/html&gt;
+        Options FollowSymLinks
+        AllowOverride All
+        Require all granted
+    &lt;/Directory&gt;
+    
+    ErrorLog logs/example.com-ssl-error_log
+    CustomLog logs/example.com-ssl-access_log common
+&lt;/VirtualHost&gt;
+    </div>
+
+    <h2>Using Let's Encrypt (Free Trusted Certificates)</h2>
+
+    <div class="info-box">
+        <strong>📌 Alternative:</strong> For production sites, it's better to use Let's Encrypt for free, automatically renewed, browser-trusted certificates.
+    </div>
+
+    <div class="command-block">
+# Install Certbot (Let's Encrypt client)
+sudo yum install epel-release -y
+sudo yum install certbot python2-certbot-apache -y
+
+# Obtain and install SSL certificate
+sudo certbot --apache -d example.com -d www.example.com
+
+# Test auto-renewal
+sudo certbot renew --dry-run
+    </div>
+
+    <h2>SSL Verification Commands</h2>
+
+    <table>
+        <tr>
+            <th>Command</th>
+            <th>Description</th>
+        </tr>
+        <tr>
+            <td><code>sudo openssl x509 -in /etc/ssl/certs/apache-selfsigned.crt -text -noout</code></td>
+            <td>View certificate details</td>
+        </tr>
+        <tr>
+            <td><code>echo | openssl s_client -connect example.com:443 -servername example.com 2>/dev/null | openssl x509 -text</code></td>
+            <td>Check SSL certificate from remote server</td>
+        </tr>
+        <tr>
+            <td><code>sudo httpd -t</code></td>
+            <td>Test Apache configuration</td>
+        </tr>
+        <tr>
+            <td><code>sudo systemctl status httpd</code></td>
+            <td>Check Apache status</td>
+        </tr>
+        <tr>
+            <td><code>sudo tail -f /var/log/httpd/ssl_error_log</code></td>
+            <td>Monitor SSL error logs</td>
+        </tr>
+    </table>
+
+    <h2>SSL Security Checklist</h2>
+
+    <table>
+        <tr>
+            <th>Item</th>
+            <th>Status</th>
+        </tr>
+        <tr>
+            <td>HTTPS redirect working (HTTP → HTTPS)</td>
+            <td>✅ / ❌</td>
+        </tr>
+        <tr>
+            <td>No mixed content (all resources loaded over HTTPS)</td>
+            <td>✅ / ❌</td>
+        </tr>
+        <tr>
+            <td>SSL certificate valid and not expired</td>
+            <td>✅ / ❌</td>
+        </tr>
+        <tr>
+            <td>Strong cipher suites configured</td>
+            <td>✅ / ❌</td>
+        </tr>
+        <tr>
+            <td>HSTS enabled (HTTP Strict Transport Security)</td>
+            <td>✅ / ❌</td>
+        </tr>
+        <tr>
+            <td>Firewall allows HTTPS (port 443)</td>
+            <td>✅ / ❌</td>
+        </tr>
+    </table>
+
+    <h2>Enable HSTS (Optional but Recommended)</h2>
+
+    <p>Add this to your HTTPS VirtualHost configuration to tell browsers to always use HTTPS:</p>
+
+    <div class="config-file">
+&lt;VirtualHost *:443&gt;
+    # ... existing configuration ...
+    
+    # Enable HSTS
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+&lt;/VirtualHost&gt;
+    </div>
+
+    <div class="warning">
+        <strong>⚠️ Caution:</strong> Enable HSTS only after confirming HTTPS works perfectly everywhere on your site, as it forces browsers to use HTTPS for the specified time period.
+    </div>
+
+    <h2>Common Issues and Solutions</h2>
+
+    <table>
+        <tr>
+            <th>Issue</th>
+            <th>Solution</th>
+        </tr>
+        <tr>
+            <td>Apache won't start after SSL configuration</td>
+            <td>Run <code>sudo httpd -t</code> to check for syntax errors. Check file paths in ssl.conf.</td>
+        </tr>
+        <tr>
+            <td>Certificate works but browser shows warning</td>
+            <td>This is normal for self-signed certificates. Use Let's Encrypt for trusted certs.</td>
+        </tr>
+        <tr>
+            <td>HTTPS works but redirect loops</td>
+            <td>Check your redirect rules for conflicts. Ensure you're not redirecting both ways.</td>
+        </tr>
+        <tr>
+            <td>Mixed content warnings</td>
+            <td>Update all resource URLs (images, CSS, JS) to use HTTPS or relative paths.</td>
+        </tr>
+        <tr>
+            <td>SSL certificate expired</td>
+            <td>For self-signed: generate new one. For Let's Encrypt: run <code>sudo certbot renew</code>.</td>
+        </tr>
+    </table>
+
+    <h2>Quick Reference Commands</h2>
+
+    <table>
+        <tr>
+            <th>Action</th>
+            <th>Command</th>
+        </tr>
+        <tr>
+            <td>Generate self-signed cert</td>
+            <td><code>sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/apache-selfsigned.key -out /etc/ssl/certs/apache-selfsigned.crt</code></td>
+        </tr>
+        <tr>
+            <td>Generate DH parameters</td>
+            <td><code>sudo openssl dhparam -out /etc/ssl/certs/dhparam.pem 2048</code></td>
+        </tr>
+        <tr>
+            <td>Restart Apache</td>
+            <td><code>sudo systemctl restart httpd</code></td>
+        </tr>
+        <tr>
+            <td>Check SSL certificate</td>
+            <td><code>sudo openssl x509 -in /etc/ssl/certs/apache-selfsigned.crt -text -noout</code></td>
+        </tr>
+        <tr>
+            <td>Test HTTPS redirect</td>
+            <td><code>curl -I http://example.com</code></td>
+        </tr>
+    </table>
+</body>
+</html>
